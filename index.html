@@ -159,6 +159,18 @@
   .lb-empty { color: rgba(255,255,255,0.5); font-size: 14px; padding: 6px 0; }
   .lb-medal { font-size: 18px; }
 
+  /* ---- temperature converter ---- */
+  #converter { display: none; }
+  .conv-box { max-width: 380px; margin: 0 auto; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 26px; }
+  .conv-field label { display: block; color: #fbbf24; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .conv-field input { width: 100%; padding: 14px 16px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08);
+    color: #fff; font-family: inherit; font-size: 22px; font-weight: 700; outline: none; }
+  .conv-field input:focus { border-color: #fbbf24; }
+  .conv-equals { text-align: center; font-size: 28px; color: #fbbf24; margin: 16px 0; }
+  .conv-hint { text-align: center; color: #cbc6e8; font-size: 13px; margin-top: 18px; }
+
   /* ---- chat view ---- */
   #chat { display: none; }
   .chat-note { text-align: center; color: #cbc6e8; font-size: 13px; margin-bottom: 14px; }
@@ -231,6 +243,7 @@
       <input id="search" type="text" placeholder="Search games…">
       <button class="btn" id="shareBtn">📤 Share</button>
       <button class="btn" id="chatBtn">💬 Chat</button>
+      <button class="btn" id="tempBtn">🌡️ Temp</button>
       <button class="btn" id="lbBtn">🏆 Leaderboard</button>
       <button class="btn" id="rulesBtn">📜 Rules</button>
       <button class="btn" id="addBtn">+ Add Game</button>
@@ -245,6 +258,24 @@
     <button class="back-btn" id="lbBackBtn">← Back to Home</button>
     <h2 class="section-title">🏆 Leaderboard</h2>
     <div id="lbContent"></div>
+  </main>
+
+  <!-- ===== TEMPERATURE CONVERTER VIEW ===== -->
+  <main id="converter">
+    <button class="back-btn" id="tempBackBtn">← Back to Home</button>
+    <h2 class="section-title">🌡️ Temperature Converter</h2>
+    <div class="conv-box">
+      <div class="conv-field">
+        <label>Celsius °C</label>
+        <input id="celsius" type="number" placeholder="0" step="any">
+      </div>
+      <div class="conv-equals">⇅</div>
+      <div class="conv-field">
+        <label>Fahrenheit °F</label>
+        <input id="fahrenheit" type="number" placeholder="32" step="any">
+      </div>
+      <p class="conv-hint">Type in either box — the other updates automatically!</p>
+    </div>
   </main>
 
   <!-- ===== CHAT VIEW ===== -->
@@ -485,6 +516,7 @@
     playView.style.display = 'none';
     document.getElementById('leaderboard').style.display = 'none';
     document.getElementById('chat').style.display = 'none';
+    document.getElementById('converter').style.display = 'none';
     homeView.style.display = 'block';
     render();
   }
@@ -592,6 +624,29 @@
   };
   // show automatically on the very first visit
   if (!localStorage.getItem('lunaRulesSeen')) showRules();
+
+  /* ---------- temperature converter ---------- */
+  const converterView = document.getElementById('converter');
+  const celsiusEl = document.getElementById('celsius');
+  const fahrenheitEl = document.getElementById('fahrenheit');
+  const roundTemp = n => Math.round(n * 10) / 10;   // 1 decimal place
+  celsiusEl.addEventListener('input', () => {
+    if (celsiusEl.value === '') { fahrenheitEl.value = ''; return; }
+    fahrenheitEl.value = roundTemp(Number(celsiusEl.value) * 9 / 5 + 32);
+  });
+  fahrenheitEl.addEventListener('input', () => {
+    if (fahrenheitEl.value === '') { celsiusEl.value = ''; return; }
+    celsiusEl.value = roundTemp((Number(fahrenheitEl.value) - 32) * 5 / 9);
+  });
+  function showConverter() {
+    homeView.style.display = 'none';
+    playView.style.display = 'none';
+    leaderboardView.style.display = 'none';
+    chatView.style.display = 'none';
+    converterView.style.display = 'block';
+  }
+  document.getElementById('tempBtn').onclick = showConverter;
+  document.getElementById('tempBackBtn').onclick = goHome;
 
   /* ---------- games chat (saved on this device) ---------- */
   const chatView = document.getElementById('chat');

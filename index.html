@@ -159,6 +159,26 @@
   .lb-empty { color: rgba(255,255,255,0.5); font-size: 14px; padding: 6px 0; }
   .lb-medal { font-size: 18px; }
 
+  /* ---- chat view ---- */
+  #chat { display: none; }
+  .chat-note { text-align: center; color: #cbc6e8; font-size: 13px; margin-bottom: 14px; }
+  .chat-box { max-width: 560px; margin: 0 auto 14px; height: 340px; overflow-y: auto;
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 14px; }
+  .chat-line { margin-bottom: 10px; font-size: 15px; line-height: 1.4; word-break: break-word; }
+  .chat-line .who { color: #fbbf24; font-weight: 700; margin-right: 6px; }
+  .chat-line .txt { color: #fff; }
+  .chat-empty { color: rgba(255,255,255,0.5); text-align: center; margin-top: 130px; }
+  .chat-inputs { max-width: 560px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chat-inputs input { padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08); color: #fff; font-family: inherit; font-size: 15px; outline: none; }
+  .chat-inputs #chatName { width: 120px; }
+  .chat-inputs #chatMsg { flex: 1; min-width: 160px; }
+  .chat-inputs input:focus { border-color: #fbbf24; }
+  .chat-clear { display: block; margin: 14px auto 0; }
+
+  .rules-list { margin: 6px 0 4px 20px; color: #fff; }
+  .rules-list li { margin: 10px 0; font-size: 16px; line-height: 1.4; }
+
   /* ---- play view ---- */
   #play { display: none; }
   .back-btn {
@@ -210,7 +230,9 @@
     <div class="toolbar">
       <input id="search" type="text" placeholder="Search games…">
       <button class="btn" id="shareBtn">📤 Share</button>
+      <button class="btn" id="chatBtn">💬 Chat</button>
       <button class="btn" id="lbBtn">🏆 Leaderboard</button>
+      <button class="btn" id="rulesBtn">📜 Rules</button>
       <button class="btn" id="addBtn">+ Add Game</button>
     </div>
 
@@ -223,6 +245,20 @@
     <button class="back-btn" id="lbBackBtn">← Back to Home</button>
     <h2 class="section-title">🏆 Leaderboard</h2>
     <div id="lbContent"></div>
+  </main>
+
+  <!-- ===== CHAT VIEW ===== -->
+  <main id="chat">
+    <button class="back-btn" id="chatBackBtn">← Back to Home</button>
+    <h2 class="section-title">💬 Games Chat</h2>
+    <p class="chat-note">Be kind — follow the rules! (Messages are saved on this device for now.)</p>
+    <div class="chat-box" id="chatBox"></div>
+    <div class="chat-inputs">
+      <input id="chatName" type="text" placeholder="Your name" maxlength="12">
+      <input id="chatMsg" type="text" placeholder="Type a message…" maxlength="200">
+      <button class="btn" id="chatSend">Send</button>
+    </div>
+    <button class="btn-ghost chat-clear" id="chatClear">Clear chat</button>
   </main>
 
   <!-- ===== PLAY VIEW ===== -->
@@ -246,6 +282,22 @@
       </div>
     </div>
   </main>
+
+  <!-- rules popup (shown on first visit) -->
+  <div class="overlay" id="rulesOverlay">
+    <div class="modal">
+      <h3>🌙 Luna Games Rules</h3>
+      <ol class="rules-list">
+        <li>No copying names or games.</li>
+        <li>No inappropriate games or behavior.</li>
+        <li>No bullying in chat.</li>
+        <li>Have fun! 🎮</li>
+      </ol>
+      <div class="actions">
+        <button class="btn" id="rulesOk">Got it! 🌙</button>
+      </div>
+    </div>
+  </div>
 
   <!-- create game modal -->
   <div class="overlay" id="overlay">
@@ -432,6 +484,7 @@
     gameoverEl.classList.remove('show');
     playView.style.display = 'none';
     document.getElementById('leaderboard').style.display = 'none';
+    document.getElementById('chat').style.display = 'none';
     homeView.style.display = 'block';
     render();
   }
@@ -527,6 +580,61 @@
     } catch (e) {
       prompt('Copy your Luna Games link:', SHARE_URL);
     }
+  };
+
+  /* ---------- rules popup ---------- */
+  const rulesOverlay = document.getElementById('rulesOverlay');
+  const showRules = () => rulesOverlay.classList.add('open');
+  document.getElementById('rulesBtn').onclick = showRules;
+  document.getElementById('rulesOk').onclick = () => {
+    rulesOverlay.classList.remove('open');
+    localStorage.setItem('lunaRulesSeen', '1');
+  };
+  // show automatically on the very first visit
+  if (!localStorage.getItem('lunaRulesSeen')) showRules();
+
+  /* ---------- games chat (saved on this device) ---------- */
+  const chatView = document.getElementById('chat');
+  const chatBox = document.getElementById('chatBox');
+  const chatNameEl = document.getElementById('chatName');
+  const chatMsgEl = document.getElementById('chatMsg');
+  const getChat = () => { try { return JSON.parse(localStorage.getItem('lunaChat') || '[]'); } catch (e) { return []; } };
+  const setChat = arr => localStorage.setItem('lunaChat', JSON.stringify(arr));
+
+  function renderChat() {
+    const msgs = getChat();
+    if (!msgs.length) { chatBox.innerHTML = '<div class="chat-empty">No messages yet — say hi! 👋</div>'; return; }
+    chatBox.innerHTML = msgs.map(m =>
+      '<div class="chat-line"><span class="who">' + escapeHtml(m.name) + ':</span>' +
+      '<span class="txt">' + escapeHtml(m.text) + '</span></div>'
+    ).join('');
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+  function sendChat() {
+    const name = (chatNameEl.value.trim() || 'Anon').slice(0, 12);
+    const text = chatMsgEl.value.trim().slice(0, 200);
+    if (!text) return;
+    localStorage.setItem('lunaChatName', name);
+    const msgs = getChat();
+    msgs.push({ name, text });
+    setChat(msgs.slice(-200));   // keep the last 200 messages
+    chatMsgEl.value = '';
+    renderChat();
+  }
+  function showChat() {
+    homeView.style.display = 'none';
+    playView.style.display = 'none';
+    leaderboardView.style.display = 'none';
+    chatNameEl.value = localStorage.getItem('lunaChatName') || '';
+    renderChat();
+    chatView.style.display = 'block';
+  }
+  document.getElementById('chatBtn').onclick = showChat;
+  document.getElementById('chatBackBtn').onclick = goHome;
+  document.getElementById('chatSend').onclick = sendChat;
+  chatMsgEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+  document.getElementById('chatClear').onclick = () => {
+    if (confirm('Clear all chat messages on this device?')) { setChat([]); renderChat(); }
   };
 
   document.getElementById('backBtn').onclick = goHome;

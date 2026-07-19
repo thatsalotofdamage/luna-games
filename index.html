@@ -145,6 +145,20 @@
   .modal .actions { display: flex; gap: 10px; margin-top: 22px; justify-content: flex-end; }
   .btn-ghost { background: transparent; border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; }
 
+  /* ---- leaderboard view ---- */
+  #leaderboard { display: none; }
+  .lb-game { max-width: 560px; margin: 0 auto 26px; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px 22px; }
+  .lb-game h3 { color: #fff; font-size: 20px; margin-bottom: 12px; }
+  .lb-row { display: flex; align-items: center; gap: 12px; padding: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.08); font-size: 16px; }
+  .lb-row:first-of-type { border-top: none; }
+  .lb-rank { width: 30px; font-weight: 700; color: #fbbf24; }
+  .lb-name { flex: 1; color: #fff; }
+  .lb-score { font-weight: 700; color: #fbbf24; }
+  .lb-empty { color: rgba(255,255,255,0.5); font-size: 14px; padding: 6px 0; }
+  .lb-medal { font-size: 18px; }
+
   /* ---- play view ---- */
   #play { display: none; }
   .back-btn {
@@ -195,11 +209,19 @@
 
     <div class="toolbar">
       <input id="search" type="text" placeholder="Search games…">
+      <button class="btn" id="lbBtn">🏆 Leaderboard</button>
       <button class="btn" id="addBtn">+ Add Game</button>
     </div>
 
     <div class="game-grid" id="grid"></div>
     <div class="empty" id="empty" style="display:none;">No games match your search.</div>
+  </main>
+
+  <!-- ===== LEADERBOARD VIEW ===== -->
+  <main id="leaderboard">
+    <button class="back-btn" id="lbBackBtn">← Back to Home</button>
+    <h2 class="section-title">🏆 Leaderboard</h2>
+    <div id="lbContent"></div>
   </main>
 
   <!-- ===== PLAY VIEW ===== -->
@@ -408,7 +430,9 @@
     if (activeStop) { activeStop(); activeStop = null; }
     gameoverEl.classList.remove('show');
     playView.style.display = 'none';
+    document.getElementById('leaderboard').style.display = 'none';
     homeView.style.display = 'block';
+    render();
   }
 
   function openGame(id, title) {
@@ -440,6 +464,50 @@
     'geometry-dash-2': ' ▲'
   })[id] || '';
 
+  /* ---------- leaderboard (top 5 per game, saved in the browser) ---------- */
+  const LB_MAX = 5;
+  const lbKey = id => 'lunaLB_' + id;
+  const getLB = id => { try { return JSON.parse(localStorage.getItem(lbKey(id)) || '[]'); } catch (e) { return []; } };
+  const setLB = (id, arr) => localStorage.setItem(lbKey(id), JSON.stringify(arr));
+  const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function lbQualifies(id, score) {
+    if (score <= 0) return false;
+    const lb = getLB(id);
+    return lb.length < LB_MAX || score > lb[lb.length - 1].score;
+  }
+  function addLB(id, name, score) {
+    const lb = getLB(id);
+    lb.push({ name: (name || 'Anon').slice(0, 12), score });
+    lb.sort((a, b) => b.score - a.score);
+    setLB(id, lb.slice(0, LB_MAX));
+  }
+
+  const leaderboardView = document.getElementById('leaderboard');
+  const lbContent = document.getElementById('lbContent');
+  function renderLeaderboard() {
+    const medals = ['🥇', '🥈', '🥉'];
+    lbContent.innerHTML = BUILTIN.map(g => {
+      const lb = getLB(g.id);
+      const rows = lb.length
+        ? lb.map((e, i) =>
+            '<div class="lb-row"><span class="lb-rank">' + (medals[i] || ('#' + (i + 1))) + '</span>' +
+            '<span class="lb-name">' + escapeHtml(e.name) + '</span>' +
+            '<span class="lb-score">' + e.score + scoreUnit(g.id) + '</span></div>'
+          ).join('')
+        : '<div class="lb-empty">No scores yet — be the first!</div>';
+      return '<div class="lb-game"><h3>' + escapeHtml(g.title) + '</h3>' + rows + '</div>';
+    }).join('');
+  }
+  function showLeaderboard() {
+    homeView.style.display = 'none';
+    playView.style.display = 'none';
+    renderLeaderboard();
+    leaderboardView.style.display = 'block';
+  }
+  document.getElementById('lbBtn').onclick = showLeaderboard;
+  document.getElementById('lbBackBtn').onclick = goHome;
+
   document.getElementById('backBtn').onclick = goHome;
   document.getElementById('homeLink').onclick = () => { if (playView.style.display === 'block') goHome(); };
   document.getElementById('restartBtn').onclick = () => { if (currentGameId) startGame(currentGameId); };
@@ -461,7 +529,18 @@
     const bestLine = beat
       ? '<span class="newbest">🏆 New Best!</span>'
       : 'Best: ' + getBest(id) + scoreUnit(id);
-    finalScoreEl.innerHTML = scoreText + '<br>' + bestLine;
+
+    // leaderboard: record if it's a top-5 run
+    let lbLine = '';
+    if (lbQualifies(id, scoreValue)) {
+      const name = prompt('🏆 Top 5 score! Enter your name for the leaderboard:', 'Beau');
+      if (name !== null) {
+        addLB(id, name, scoreValue);
+        lbLine = '<br><span class="newbest">📋 Added to the leaderboard!</span>';
+      }
+    }
+
+    finalScoreEl.innerHTML = scoreText + '<br>' + bestLine + lbLine;
     gameoverEl.classList.add('show');
   }
 

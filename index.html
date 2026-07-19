@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luna Games</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1a1440 0%, #3b2a7a 100%);
+    overflow-x: hidden;
+    color: #fff;
+  }
+
+  /* starry sky */
+  .stars { position: fixed; inset: 0; pointer-events: none; }
+  .star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle 3s infinite ease-in-out;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; }
+    50%      { opacity: 1; }
+  }
+
+  /* header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 28px 20px;
+    cursor: pointer;
+  }
+  .moon { width: 56px; height: 56px; position: relative; flex-shrink: 0; }
+  .moon .disc {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: linear-gradient(135deg, #fef3c7, #fbbf24);
+  }
+  .moon .shadow {
+    position: absolute; width: 50px; height: 50px; top: -5px; left: 12px;
+    border-radius: 50%; background: #1a1440;
+  }
+  .wordmark { line-height: 1; text-align: left; }
+  .wordmark .luna { font-size: 40px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+  .wordmark .games { font-size: 20px; font-weight: 400; color: #fbbf24; letter-spacing: 6px; }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+  .section-title {
+    text-align: center; font-size: 24px; font-weight: 700;
+    margin: 20px 0 30px; color: #fbbf24; letter-spacing: 1px;
+  }
+
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 26px;
+  }
+  .game-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .game-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    border-color: #fbbf24;
+  }
+  .game-card img {
+    width: 100%; aspect-ratio: 347 / 260; object-fit: cover; background: #1a1440;
+  }
+  .game-card .info { padding: 16px 18px 20px; }
+  .game-card .info h3 { font-size: 20px; margin-bottom: 8px; }
+  .game-card .info p { font-size: 14px; line-height: 1.5; color: #cbc6e8; }
+  .game-card .best { display: block; margin-top: 10px; color: #fbbf24; font-weight: 700; font-size: 14px; }
+  .game-card .play {
+    margin-top: 14px; display: inline-block;
+    background: linear-gradient(135deg, #fef3c7, #fbbf24);
+    color: #1a1440; font-weight: 700; font-size: 13px;
+    padding: 8px 16px; border-radius: 20px; letter-spacing: 1px;
+  }
+
+  /* toolbar */
+  .toolbar { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .toolbar input {
+    flex: 1; min-width: 200px; max-width: 420px; padding: 12px 18px;
+    border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08); color: #fff; font-size: 15px;
+    font-family: inherit; outline: none;
+  }
+  .toolbar input::placeholder { color: rgba(255, 255, 255, 0.55); }
+  .toolbar input:focus { border-color: #fbbf24; }
+  .btn {
+    padding: 12px 22px; border-radius: 24px; border: none; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 15px;
+    background: linear-gradient(135deg, #fef3c7, #fbbf24); color: #1a1440; white-space: nowrap;
+  }
+  .btn:hover { filter: brightness(1.05); }
+  .empty { text-align: center; color: rgba(255, 255, 255, 0.6); padding: 40px 0; font-size: 15px; }
+
+  .game-card .del {
+    position: absolute; top: 8px; right: 8px; width: 26px; height: 26px;
+    border-radius: 50%; border: none; background: rgba(0, 0, 0, 0.55); color: #fff;
+    font-size: 15px; line-height: 1; cursor: pointer; display: none; z-index: 2;
+  }
+  .game-card.custom:hover .del { display: block; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+    display: none; align-items: center; justify-content: center; z-index: 10; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: #241a52; border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px; padding: 28px; width: 100%; max-width: 420px;
+  }
+  .modal h3 { margin-bottom: 18px; color: #fbbf24; font-size: 22px; }
+  .modal label { display: block; font-size: 13px; margin: 14px 0 6px; color: #cbc6e8; }
+  .modal input, .modal textarea {
+    width: 100%; padding: 10px 14px; border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.08);
+    color: #fff; font-family: inherit; font-size: 14px; outline: none; resize: vertical;
+  }
+  .modal input:focus, .modal textarea:focus { border-color: #fbbf24; }
+  .modal .actions { display: flex; gap: 10px; margin-top: 22px; justify-content: flex-end; }
+  .btn-ghost { background: transparent; border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; }
+
+  /* ---- play view ---- */
+  #play { display: none; }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; font-family: inherit; font-size: 15px; font-weight: 700;
+    padding: 10px 18px; border-radius: 22px; cursor: pointer; margin-bottom: 20px;
+  }
+  .back-btn:hover { border-color: #fbbf24; }
+  .play-title { text-align: center; font-size: 26px; color: #fbbf24; margin-bottom: 6px; }
+  .play-hint { text-align: center; color: #cbc6e8; font-size: 14px; margin-bottom: 8px; }
+  .play-best { text-align: center; color: #fbbf24; font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .gameover .newbest { color: #fbbf24; font-size: 20px; font-weight: 700; }
+  .stage-wrap { display: flex; justify-content: center; }
+  .stage {
+    position: relative;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px; overflow: hidden; max-width: 100%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  }
+  canvas { display: block; max-width: 100%; height: auto; background: #100b2e; touch-action: none; }
+  .hud {
+    position: absolute; top: 10px; left: 0; right: 0;
+    display: flex; justify-content: space-between; padding: 0 16px;
+    font-weight: 700; font-size: 18px; pointer-events: none; text-shadow: 0 1px 3px #000;
+  }
+  .gameover {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    background: rgba(16, 11, 46, 0.82); text-align: center;
+  }
+  .gameover.show { display: flex; }
+  .gameover h2 { font-size: 30px; color: #fbbf24; }
+  .gameover p { font-size: 18px; }
+</style>
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+
+  <header id="homeLink">
+    <div class="moon"><div class="disc"></div><div class="shadow"></div></div>
+    <div class="wordmark"><div class="luna">Luna</div><div class="games">GAMES</div></div>
+  </header>
+
+  <!-- ===== HOME VIEW ===== -->
+  <main id="home">
+    <h2 class="section-title">Beau's Games</h2>
+
+    <div class="toolbar">
+      <input id="search" type="text" placeholder="Search games…">
+      <button class="btn" id="addBtn">+ Add Game</button>
+    </div>
+
+    <div class="game-grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none;">No games match your search.</div>
+  </main>
+
+  <!-- ===== PLAY VIEW ===== -->
+  <main id="play">
+    <button class="back-btn" id="backBtn">← Back to Home</button>
+    <h2 class="play-title" id="playTitle"></h2>
+    <p class="play-hint" id="playHint"></p>
+    <p class="play-best" id="bestLabel"></p>
+    <div class="stage-wrap">
+      <div class="stage">
+        <canvas id="gameCanvas" width="720" height="440"></canvas>
+        <div class="hud">
+          <span id="hudLeft"></span>
+          <span id="hudRight"></span>
+        </div>
+        <div class="gameover" id="gameover">
+          <h2>Game Over</h2>
+          <p id="finalScore"></p>
+          <button class="btn" id="restartBtn">Play Again</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- create game modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3>Add a Game</h3>
+      <label>Title</label>
+      <input id="f-title" type="text" placeholder="My Awesome Game">
+      <label>Description</label>
+      <textarea id="f-desc" rows="2" placeholder="A short description…"></textarea>
+      <label>Link (URL) — optional</label>
+      <input id="f-link" type="text" placeholder="https://…">
+      <label>Image URL (optional)</label>
+      <input id="f-img" type="text" placeholder="https://…">
+      <div class="actions">
+        <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button class="btn" id="saveBtn">Add Game</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ---------- twinkling stars ---------- */
+  const sky = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2 + 1;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top = Math.random() * 100 + 'vh';
+    s.style.animationDelay = (Math.random() * 3) + 's';
+    sky.appendChild(s);
+  }
+
+  /* ---------- games data ---------- */
+  const BUILTIN = [
+    {
+      id: 'star-catcher',
+      title: 'Star Catcher',
+      desc: 'Move your basket and catch the falling stars!',
+      img: 'https://img.itch.zone/aW1nLzI3OTUzNzY2LmpwZw==/original/b%2FIypW.jpg'
+    },
+    {
+      id: 'fox-parkour',
+      title: 'Fox Dodger',
+      desc: "You're a fox — jump over the wolves and run as far as you can!",
+      img: 'https://img.itch.zone/aW1nLzI3OTM0NDU5LmpwZWc=/original/f7YDY2.jpeg'
+    },
+    {
+      id: 'moon-miner',
+      title: 'Moon Miner',
+      desc: 'Dig deep into the moon — grab the gems, dodge lava and rocks!',
+      img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='260'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232a2060'/%3E%3Cstop offset='1' stop-color='%23120c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='347' height='260' fill='url(%23g)'/%3E%3Ccircle cx='250' cy='70' r='46' fill='%23fbbf24'/%3E%3Ccircle cx='266' cy='60' r='38' fill='%23120c33'/%3E%3Ctext x='90' y='170' font-size='90'%3E%F0%9F%92%8E%3C/text%3E%3Ctext x='190' y='210' font-size='60'%3E%E2%9B%8F%EF%B8%8F%3C/text%3E%3C/svg%3E"
+    },
+    {
+      id: 'geometry-dash-2',
+      title: 'Geometry Dash 2',
+      desc: 'Dodge spikes, jump on blocks — have fun!',
+      img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='260'%3E%3Crect width='347' height='260' fill='%23120c33'/%3E%3Crect x='55' y='140' width='52' height='52' rx='8' fill='%23fbbf24'/%3E%3Crect x='70' y='155' width='10' height='10' fill='%23120c33'/%3E%3Cpolygon points='165,196 187,140 209,196' fill='%23ef4444'/%3E%3Cpolygon points='214,196 236,140 258,196' fill='%23ef4444'/%3E%3Crect x='0' y='196' width='347' height='7' fill='%23fbbf24'/%3E%3C/svg%3E"
+    }
+  ];
+
+  const STORE_KEY = 'lunaGamesCustom';
+  const loadCustom = () => JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+  const saveCustom = (list) => localStorage.setItem(STORE_KEY, JSON.stringify(list));
+
+  const grid = document.getElementById('grid');
+  const emptyMsg = document.getElementById('empty');
+  const searchBox = document.getElementById('search');
+  const homeView = document.getElementById('home');
+  const playView = document.getElementById('play');
+
+  const placeholderImg =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='260'%3E%3Crect width='347' height='260' fill='%231a1440'/%3E%3Ccircle cx='173' cy='120' r='40' fill='%23fbbf24'/%3E%3Ccircle cx='188' cy='110' r='34' fill='%231a1440'/%3E%3C/svg%3E";
+
+  function render() {
+    const q = searchBox.value.trim().toLowerCase();
+    const custom = loadCustom();
+    const all = [
+      ...BUILTIN.map(g => ({ ...g, custom: false })),
+      ...custom.map(g => ({ ...g, custom: true }))
+    ];
+    const filtered = all.filter(g =>
+      g.title.toLowerCase().includes(q) || (g.desc || '').toLowerCase().includes(q)
+    );
+
+    grid.innerHTML = '';
+    emptyMsg.style.display = filtered.length ? 'none' : 'block';
+
+    filtered.forEach(g => {
+      const card = document.createElement('div');
+      card.className = 'game-card' + (g.custom ? ' custom' : '');
+
+      const img = document.createElement('img');
+      img.src = g.img || placeholderImg;
+      img.alt = g.title + ' cover';
+      img.onerror = () => { img.src = placeholderImg; };
+      card.appendChild(img);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      info.innerHTML = '<h3></h3><p></p><span class="best"></span><span class="play">PLAY ▸</span>';
+      info.querySelector('h3').textContent = g.title;
+      info.querySelector('p').textContent = g.desc || '';
+      // show the best score on built-in game cards
+      const bestEl = info.querySelector('.best');
+      if (!g.custom && getBest(g.id) > 0) {
+        bestEl.textContent = '🏆 Best: ' + getBest(g.id) + scoreUnit(g.id);
+      } else {
+        bestEl.remove();
+      }
+      card.appendChild(info);
+
+      card.onclick = () => {
+        if (!g.custom) {
+          openGame(g.id, g.title);
+        } else if (g.link) {
+          window.open(g.link, '_blank', 'noopener');
+        } else {
+          alert('This game has no link or playable content yet.');
+        }
+      };
+
+      if (g.custom) {
+        const del = document.createElement('button');
+        del.className = 'del';
+        del.textContent = '✕';
+        del.title = 'Remove game';
+        del.onclick = (e) => {
+          e.stopPropagation();
+          const list = loadCustom().filter(x => !(x.title === g.title && x.link === g.link));
+          saveCustom(list);
+          render();
+        };
+        card.appendChild(del);
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  searchBox.addEventListener('input', render);
+
+  /* ---------- create modal ---------- */
+  const overlay = document.getElementById('overlay');
+  const openModal = () => overlay.classList.add('open');
+  const closeModal = () => {
+    overlay.classList.remove('open');
+    ['f-title', 'f-desc', 'f-link', 'f-img'].forEach(id => document.getElementById(id).value = '');
+  };
+  document.getElementById('addBtn').onclick = openModal;
+  document.getElementById('cancelBtn').onclick = closeModal;
+  overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+  document.getElementById('saveBtn').onclick = () => {
+    const title = document.getElementById('f-title').value.trim();
+    if (!title) { alert('Please give your game a title.'); return; }
+    const list = loadCustom();
+    list.push({
+      title,
+      desc: document.getElementById('f-desc').value.trim(),
+      link: document.getElementById('f-link').value.trim(),
+      img: document.getElementById('f-img').value.trim()
+    });
+    saveCustom(list);
+    closeModal();
+    render();
+  };
+
+  /* ================= PLAY VIEW / GAMES ================= */
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const hudLeft = document.getElementById('hudLeft');
+  const hudRight = document.getElementById('hudRight');
+  const gameoverEl = document.getElementById('gameover');
+  const finalScoreEl = document.getElementById('finalScore');
+
+  let activeStop = null;   // function to stop the current game
+  let currentGameId = null;
+
+  function goHome() {
+    if (activeStop) { activeStop(); activeStop = null; }
+    gameoverEl.classList.remove('show');
+    playView.style.display = 'none';
+    homeView.style.display = 'block';
+  }
+
+  function openGame(id, title) {
+    currentGameId = id;
+    homeView.style.display = 'none';
+    playView.style.display = 'block';
+    gameoverEl.classList.remove('show');
+    document.getElementById('playTitle').textContent = title;
+    const hints = {
+      'star-catcher': 'Move with your mouse or ← → arrow keys. Catch stars, don\'t let them fall!',
+      'fox-parkour': 'Press Space / ↑ / tap to jump. Dodge the wolves!',
+      'moon-miner': 'Move with your mouse or ← → arrow keys. Grab 💎 gems, dodge 🔥 lava and 🪨 rocks!',
+      'geometry-dash-2': 'Press Space / ↑ / tap to jump. Dodge the spikes and land on the blocks!'
+    };
+    document.getElementById('playHint').textContent = hints[id] || '';
+    document.getElementById('bestLabel').textContent =
+      getBest(id) > 0 ? '🏆 Best: ' + getBest(id) + scoreUnit(id) : 'No best yet — set a record!';
+    startGame(id);
+  }
+
+  /* ---------- high scores (saved per game in the browser) ---------- */
+  const bestKey = id => 'lunaBest_' + id;
+  const getBest = id => Number(localStorage.getItem(bestKey(id)) || 0);
+  const setBest = (id, v) => localStorage.setItem(bestKey(id), String(v));
+  const scoreUnit = id => ({
+    'star-catcher': ' ⭐',
+    'fox-parkour': 'm 🏃',
+    'moon-miner': ' 💎',
+    'geometry-dash-2': ' ▲'
+  })[id] || '';
+
+  document.getElementById('backBtn').onclick = goHome;
+  document.getElementById('homeLink').onclick = () => { if (playView.style.display === 'block') goHome(); };
+  document.getElementById('restartBtn').onclick = () => { if (currentGameId) startGame(currentGameId); };
+
+  function startGame(id) {
+    if (activeStop) { activeStop(); activeStop = null; }
+    gameoverEl.classList.remove('show');
+    if (id === 'star-catcher') activeStop = starCatcher();
+    else if (id === 'fox-parkour') activeStop = foxParkour();
+    else if (id === 'moon-miner') activeStop = moonMiner();
+    else activeStop = geometryDash();
+  }
+
+  function endGame(scoreText, scoreValue) {
+    const id = currentGameId;
+    const prevBest = getBest(id);
+    const beat = scoreValue > prevBest;
+    if (beat) setBest(id, scoreValue);
+    const bestLine = beat
+      ? '<span class="newbest">🏆 New Best!</span>'
+      : 'Best: ' + getBest(id) + scoreUnit(id);
+    finalScoreEl.innerHTML = scoreText + '<br>' + bestLine;
+    gameoverEl.classList.add('show');
+  }
+
+  /* ---------- Game 1: Star Catcher ---------- */
+  function starCatcher() {
+    let basketX = W / 2;
+    const basketW = 100, basketY = H - 46;
+    let stars = [];
+    let score = 0, lives = 3, caught = 0;    // caught drives difficulty (not the score)
+    let frame = 0, running = true, raf;
+    let cheat = false, codeBuf = '';         // secret "luna" cheat
+
+    function onMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = W / rect.width;
+      const cx = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) * scale;
+      basketX = Math.max(basketW/2, Math.min(W - basketW/2, cx));
+    }
+    const keys = {};
+    const kd = e => {
+      keys[e.key] = true;
+      if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+        codeBuf = (codeBuf + e.key.toLowerCase()).slice(-4);
+        if (!cheat && codeBuf === 'luna') { cheat = true; score += 100; }
+      }
+    };
+    const ku = e => { keys[e.key] = false; };
+
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('keydown', kd);
+    window.addEventListener('keyup', ku);
+
+    function loop() {
+      if (!running) return;
+      frame++;
+      if (keys['ArrowLeft']) basketX = Math.max(basketW/2, basketX - 7);
+      if (keys['ArrowRight']) basketX = Math.min(W - basketW/2, basketX + 7);
+
+      const spawnEvery = Math.max(28, 60 - Math.floor(caught / 5) * 3);
+      if (frame % spawnEvery === 0) {
+        stars.push({ x: 30 + Math.random() * (W - 60), y: -20, v: 2.4 + Math.random() * 1.6 + caught * 0.02 });
+      }
+
+      ctx.fillStyle = '#100b2e';
+      ctx.fillRect(0, 0, W, H);
+
+      // stars
+      ctx.font = '30px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const st = stars[i];
+        st.y += st.v;
+        ctx.fillText('⭐', st.x, st.y);
+        // catch?
+        if (st.y > basketY - 18 && st.y < basketY + 20 && Math.abs(st.x - basketX) < basketW/2 + 6) {
+          score += cheat ? 100 : 1; caught++; stars.splice(i, 1); continue;
+        }
+        if (st.y > H + 20) {
+          stars.splice(i, 1);
+          if (!cheat) {                       // cheat = never lose a life
+            lives--;
+            if (lives <= 0) { running = false; }
+          }
+        }
+      }
+
+      // basket
+      ctx.font = '46px serif';
+      ctx.fillText('🧺', basketX, basketY);
+
+      if (score === 666) score = 667;   // skip the devil's number 😈
+      hudLeft.textContent = (cheat ? '😏 ' : '⭐ ') + score;
+      hudRight.textContent = cheat ? '❤️♾️' : ('❤️ '.repeat(Math.max(0, lives)).trim() || '💀');
+
+      if (!running) { endGame('You caught ' + score + ' stars!', score); return; }
+      raf = requestAnimationFrame(loop);
+    }
+    loop();
+
+    return function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      canvas.removeEventListener('mousemove', onMove);
+      canvas.removeEventListener('touchmove', onMove);
+      window.removeEventListener('keydown', kd);
+      window.removeEventListener('keyup', ku);
+    };
+  }
+
+  /* ---------- Game 2: Fox Parkour ---------- */
+  function foxParkour() {
+    const groundY = H - 60;
+    const fox = { x: 110, y: groundY, vy: 0, size: 42, onGround: true };
+    const gravity = 0.7, jumpV = -13.5;
+    let wolves = [];
+    let score = 0, frame = 0, speed = 6, running = true, raf;
+    let cheat = false, codeBuf = '', bonus = 0;   // secret "luna" cheat
+
+    function jump() {
+      if (fox.onGround) { fox.vy = jumpV; fox.onGround = false; }
+    }
+    const kd = e => {
+      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Spacebar') { e.preventDefault(); jump(); }
+      if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+        codeBuf = (codeBuf + e.key.toLowerCase()).slice(-4);
+        if (!cheat && codeBuf === 'luna') { cheat = true; bonus += 100; }
+      }
+    };
+    const tap = e => { e.preventDefault(); jump(); };
+
+    window.addEventListener('keydown', kd);
+    canvas.addEventListener('mousedown', tap);
+    canvas.addEventListener('touchstart', tap, { passive: false });
+
+    function loop() {
+      if (!running) return;
+      frame++;
+      score = Math.floor(frame / 6) + bonus;
+      if (score === 666) score = 667;   // skip the devil's number 😈
+      speed = 6 + score * 0.03;
+
+      // fox physics
+      fox.vy += gravity;
+      fox.y += fox.vy;
+      if (fox.y >= groundY) { fox.y = groundY; fox.vy = 0; fox.onGround = true; }
+
+      // spawn wolves
+      const gap = Math.max(55, 100 - score * 0.4);
+      if (frame % Math.round(gap) === 0 && Math.random() < 0.85) {
+        wolves.push({ x: W + 30, y: groundY, size: 40 });
+      }
+
+      // draw background
+      ctx.fillStyle = '#100b2e';
+      ctx.fillRect(0, 0, W, H);
+      // ground line
+      ctx.strokeStyle = 'rgba(251,191,36,0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + 22);
+      ctx.lineTo(W, groundY + 22);
+      ctx.stroke();
+
+      ctx.font = '40px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+
+      // wolves
+      for (let i = wolves.length - 1; i >= 0; i--) {
+        const wv = wolves[i];
+        wv.x -= speed;
+        ctx.fillText('🐺', wv.x, wv.y + 14);
+        // collision (bounding boxes)
+        if (!cheat && Math.abs(wv.x - fox.x) < 34 && (fox.y > groundY - 26)) {
+          running = false;                    // cheat = wolves can't hurt you
+        }
+        if (wv.x < -40) wolves.splice(i, 1);
+      }
+
+      // fox
+      ctx.font = '44px serif';
+      ctx.fillText('🦊', fox.x, fox.y + 14);
+
+      hudLeft.textContent = (cheat ? '😏 ' : '🏃 ') + score + 'm';
+      hudRight.textContent = cheat ? '♾️' : '';
+
+      if (!running) { endGame('You ran ' + score + ' meters!', score); return; }
+      raf = requestAnimationFrame(loop);
+    }
+    loop();
+
+    return function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', kd);
+      canvas.removeEventListener('mousedown', tap);
+      canvas.removeEventListener('touchstart', tap);
+    };
+  }
+
+  /* ---------- Game 3: Moon Miner ---------- */
+  function moonMiner() {
+    const minerY = 70;              // miner stays near top; world scrolls up
+    let minerX = W / 2;
+    let items = [];                 // {x, y, type: 'gem'|'lava'|'rock'}
+    let depth = 0, gems = 0, lives = 3;
+    let cheat = false;                       // secret cheat, off until the code is typed
+    let codeBuf = '';                        // tracks recently typed letters
+    let frame = 0, speed = 3.2, running = true, raf;
+
+    function onMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = W / rect.width;
+      const cx = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) * scale;
+      minerX = Math.max(26, Math.min(W - 26, cx));
+    }
+    const keys = {};
+    const kd = e => {
+      keys[e.key] = true;
+      // secret cheat: type "luna" to switch it on (instant +100 gems, then 100 per gem)
+      if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+        codeBuf = (codeBuf + e.key.toLowerCase()).slice(-4);
+        if (!cheat && codeBuf === 'luna') { cheat = true; gems += 100; }
+      }
+    };
+    const ku = e => { keys[e.key] = false; };
+
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('keydown', kd);
+    window.addEventListener('keyup', ku);
+
+    function loop() {
+      if (!running) return;
+      frame++;
+      depth = Math.floor(frame / 6);
+      speed = 3.2 + depth * 0.02;
+
+      if (keys['ArrowLeft']) minerX = Math.max(26, minerX - 7);
+      if (keys['ArrowRight']) minerX = Math.min(W - 26, minerX + 7);
+
+      // spawn items rising up from below
+      const spawnEvery = Math.max(22, 46 - Math.floor(depth / 12));
+      if (frame % spawnEvery === 0) {
+        const r = Math.random();
+        const type = r < 0.5 ? 'gem' : (r < 0.78 ? 'rock' : 'lava');
+        items.push({ x: 30 + Math.random() * (W - 60), y: H + 24, type });
+      }
+
+      // background: cave gradient
+      const grd = ctx.createLinearGradient(0, 0, 0, H);
+      grd.addColorStop(0, '#241a52');
+      grd.addColorStop(1, '#0c0722');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, W, H);
+
+      // faint rock walls
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      ctx.fillRect(0, 0, 18, H);
+      ctx.fillRect(W - 18, 0, 18, H);
+
+      ctx.font = '34px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.y -= speed;
+        const emoji = it.type === 'gem' ? '💎' : it.type === 'lava' ? '🔥' : '🪨';
+        ctx.fillText(emoji, it.x, it.y);
+
+        // collision with miner
+        if (Math.abs(it.y - minerY) < 30 && Math.abs(it.x - minerX) < 34) {
+          if (it.type === 'gem') { gems += cheat ? 100 : 1; items.splice(i, 1); continue; }
+          else { // lava or rock
+            lives--; items.splice(i, 1);
+            if (lives <= 0) running = false;
+            continue;
+          }
+        }
+        if (it.y < -30) items.splice(i, 1);
+      }
+
+      // miner
+      ctx.font = '40px serif';
+      ctx.fillText('🧑‍🚀', minerX, minerY);
+
+      if (gems === 666) gems = 667;   // skip the devil's number 😈
+
+      hudLeft.textContent = (cheat ? '😏 ' : '⛏️ ') + depth + 'm';
+      hudRight.textContent = '💎 ' + gems + '   ' + ('❤️'.repeat(Math.max(0, lives)) || '💀');
+
+      if (!running) { endGame(gems + ' gems mined! • Depth ' + depth + 'm', gems); return; }
+      raf = requestAnimationFrame(loop);
+    }
+    loop();
+
+    return function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      canvas.removeEventListener('mousemove', onMove);
+      canvas.removeEventListener('touchmove', onMove);
+      window.removeEventListener('keydown', kd);
+      window.removeEventListener('keyup', ku);
+    };
+  }
+
+  /* ---------- Game 4: Geometry Dash 2 ---------- */
+  function geometryDash() {
+    const groundY = H - 60;
+    const pw = 34;
+    const player = { x: 120, feet: groundY, vy: 0, onGround: true, rot: 0 };
+    const gravity = 0.75, jumpV = -14;
+    let obstacles = [];
+    let score = 0, frame = 0, speed = 5.5, running = true, raf;
+    let nextGap = 320;   // pixels until the next obstacle spawns
+    let cheat = false, codeBuf = '', bonus = 0;   // secret "luna" cheat
+
+    function jump() {
+      if (player.onGround) { player.vy = jumpV; player.onGround = false; }
+    }
+    const kd = e => {
+      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Spacebar') { e.preventDefault(); jump(); }
+      if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+        codeBuf = (codeBuf + e.key.toLowerCase()).slice(-4);
+        if (!cheat && codeBuf === 'luna') { cheat = true; bonus += 100; }
+      }
+    };
+    const tap = e => { e.preventDefault(); jump(); };
+    window.addEventListener('keydown', kd);
+    canvas.addEventListener('mousedown', tap);
+    canvas.addEventListener('touchstart', tap, { passive: false });
+
+    function loop() {
+      if (!running) return;
+      frame++;
+      score = Math.floor(frame / 6) + bonus;
+      if (score === 666) score = 667;   // skip the devil's number 😈
+      speed = Math.min(9, 5.5 + score * 0.008);   // gentle ramp, capped
+
+      // physics
+      const prevFeet = player.feet;   // where the cube's bottom was last frame
+      player.vy += gravity;
+      player.feet += player.vy;
+      player.onGround = false;
+      if (player.feet >= groundY) { player.feet = groundY; player.vy = 0; player.onGround = true; }
+
+      // distance-based spawning: keeps the rhythm fair no matter the speed
+      let rightmost = -Infinity;
+      for (const o of obstacles) rightmost = Math.max(rightmost, o.x);
+      if (obstacles.length === 0 || (W + 24 - rightmost) >= nextGap) {
+        if (Math.random() < 0.55) {
+          obstacles.push({ type: 'spike', x: W + 24 });
+        } else {
+          obstacles.push({ type: 'block', x: W + 24, w: 40, h: 38 });
+        }
+        // gap scales with speed so you always get the same reaction time
+        nextGap = speed * (44 + Math.random() * 26);
+      }
+
+      // draw background
+      ctx.fillStyle = '#120c33';
+      ctx.fillRect(0, 0, W, H);
+      // ground (right under the cube's feet)
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(0, groundY + 2, W, 5);
+
+      const pTop = player.feet - pw, pLeft = player.x, pRight = player.x + pw;
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed;
+
+        if (o.type === 'spike') {
+          // triangle sitting on the ground (same level as the cube's feet)
+          const base = groundY, cx = o.x, half = 16, hgt = 34;
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(cx - half, base);
+          ctx.lineTo(cx, base - hgt);
+          ctx.lineTo(cx + half, base);
+          ctx.closePath();
+          ctx.fill();
+          // collision: player low enough + horizontal overlap
+          if (!cheat && pRight > cx - half + 4 && pLeft < cx + half - 4 && player.feet > groundY - 20) {
+            running = false;
+          }
+        } else {
+          // block: pure obstacle — NO landing on top, any contact kills you
+          const top = groundY - o.h;
+          ctx.fillStyle = '#7c6ce0';
+          ctx.fillRect(o.x, top, o.w, o.h);
+          ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+          ctx.strokeRect(o.x, top, o.w, o.h);
+
+          // land on top = safe; walk/run forward into the side = die
+          const overlapX = pRight > o.x && pLeft < o.x + o.w;
+          if (overlapX) {
+            if (prevFeet <= top && player.feet >= top && player.vy >= 0) {
+              // came down onto the top -> stand on it (tiny settle, no straight-down snap)
+              player.feet = top;
+              player.vy = 0;
+              player.onGround = true;
+            } else if (!cheat && prevFeet > top && player.feet > top) {
+              // was at ground level and ran into the side -> die
+              running = false;
+            }
+          }
+        }
+        if (o.x < -60) obstacles.splice(i, 1);
+      }
+
+      // draw player (rotating square, GD style)
+      const cx = player.x + pw / 2, cy = player.feet - pw / 2;
+      if (!player.onGround) player.rot += 0.16;
+      else player.rot = Math.round(player.rot / (Math.PI / 2)) * (Math.PI / 2);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(player.rot);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(-pw / 2, -pw / 2, pw, pw);
+      ctx.fillStyle = '#1a1440';
+      ctx.fillRect(-8, -8, 16, 16);
+      ctx.restore();
+
+      hudLeft.textContent = (cheat ? '😏 ' : '▲ ') + score;
+      hudRight.textContent = cheat ? '♾️' : '';
+
+      if (!running) { endGame('You scored ' + score + '!', score); return; }
+      raf = requestAnimationFrame(loop);
+    }
+    loop();
+
+    return function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', kd);
+      canvas.removeEventListener('mousedown', tap);
+      canvas.removeEventListener('touchstart', tap);
+    };
+  }
+
+  render();
+</script>
+</body>
+</html>

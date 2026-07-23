@@ -282,7 +282,7 @@
   <main id="chat">
     <button class="back-btn" id="chatBackBtn">← Back to Home</button>
     <h2 class="section-title">💬 Games Chat</h2>
-    <p class="chat-note">Be kind — follow the rules! (Messages are saved on this device for now.)</p>
+    <p class="chat-note" id="chatNote"></p>
     <div class="chat-box" id="chatBox"></div>
     <div class="chat-inputs">
       <input id="chatName" type="text" placeholder="Your name" maxlength="12">
@@ -665,10 +665,48 @@
     ).join('');
     chatBox.scrollTop = chatBox.scrollHeight;
   }
+  // 3-strike rule enforcement (bullying / mean / inappropriate words)
+  const BAD_WORDS = ['stupid', 'idiot', 'dumb', 'dummy', 'loser', 'shut up', 'hate you',
+    'ugly', 'moron', 'sucks', 'noob', 'trash', 'kill you', 'shutup', 'freak'];
+  const getStrikes = () => Number(localStorage.getItem('lunaStrikes') || 0);
+  const setStrikes = n => localStorage.setItem('lunaStrikes', String(n));
+  const chatSendBtn = document.getElementById('chatSend');
+  const chatNote = document.getElementById('chatNote');
+
+  function updateStrikeUI() {
+    const s = getStrikes();
+    if (s >= 3) {
+      chatNote.innerHTML = '🚫 3 strikes for breaking the rules — you\'re out of chat!';
+      chatMsgEl.disabled = true; chatSendBtn.disabled = true;
+    } else {
+      chatNote.innerHTML = 'Be kind — follow the rules! &nbsp; ⚠️ Strikes: ' + s + '/3';
+      chatMsgEl.disabled = false; chatSendBtn.disabled = false;
+    }
+  }
+
   function sendChat() {
+    const raw = chatMsgEl.value.trim();
+    // secret owner override: type "luna" to reset strikes and unlock
+    if (raw.toLowerCase() === 'luna') { setStrikes(0); chatMsgEl.value = ''; updateStrikeUI(); alert('😏 Strikes reset!'); return; }
+    if (getStrikes() >= 3) return;   // locked out
+
     const name = (chatNameEl.value.trim() || 'Anon').slice(0, 12);
-    const text = chatMsgEl.value.trim().slice(0, 200);
+    const text = raw.slice(0, 200);
     if (!text) return;
+
+    // rule check → give a strike, block the message
+    const lower = text.toLowerCase();
+    if (BAD_WORDS.some(w => lower.includes(w))) {
+      const s = getStrikes() + 1;
+      setStrikes(s);
+      chatMsgEl.value = '';
+      updateStrikeUI();
+      alert(s >= 3
+        ? '🚫 Strike ' + s + ' of 3! That breaks the rules — you\'re out of chat.'
+        : '⚠️ Strike ' + s + ' of 3! That message breaks the rules — please be kind.');
+      return;
+    }
+
     localStorage.setItem('lunaChatName', name);
     const msgs = getChat();
     msgs.push({ name, text });
@@ -680,8 +718,10 @@
     homeView.style.display = 'none';
     playView.style.display = 'none';
     leaderboardView.style.display = 'none';
+    converterView.style.display = 'none';
     chatNameEl.value = localStorage.getItem('lunaChatName') || '';
     renderChat();
+    updateStrikeUI();
     chatView.style.display = 'block';
   }
   document.getElementById('chatBtn').onclick = showChat;

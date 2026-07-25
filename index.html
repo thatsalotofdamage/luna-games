@@ -393,7 +393,7 @@
     {
       id: 'moon-clicker',
       title: 'Moon Clicker',
-      desc: 'Click the moon for 30s! Buy upgrades and collect the most moon dust.',
+      desc: 'Click the moon to collect dust and buy upgrades — your progress saves forever!',
       img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='260'%3E%3Crect width='347' height='260' fill='%23140f38'/%3E%3Ccircle cx='150' cy='128' r='72' fill='%23fbbf24'/%3E%3Ccircle cx='176' cy='112' r='60' fill='%23140f38'/%3E%3Ctext x='214' y='120' font-size='58'%3E%E2%9C%A8%3C/text%3E%3Ctext x='58' y='226' font-size='52'%3E%F0%9F%96%B1%EF%B8%8F%3C/text%3E%3C/svg%3E"
     }
   ];
@@ -538,7 +538,7 @@
       'fox-parkour': 'Press Space / ↑ / tap to jump. Dodge the wolves!',
       'moon-miner': 'Move with your mouse or ← → arrow keys. Grab 💎 gems, dodge 🔥 lava and 🪨 rocks!',
       'geometry-dash-2': 'Press Space / ↑ / tap to jump. Dodge the spikes and land on the blocks!',
-      'moon-clicker': 'Click the 🌙 moon fast! Spend dust on upgrades. Most dust in 30 seconds wins!'
+      'moon-clicker': 'Click the 🌙 moon to collect dust! Spend it on upgrades — your progress saves automatically.'
     };
     document.getElementById('playHint').textContent = hints[id] || '';
     document.getElementById('bestLabel').textContent =
@@ -1198,15 +1198,23 @@
     };
   }
 
-  /* ---------- Game 5: Moon Clicker ---------- */
+  /* ---------- Game 5: Moon Clicker (endless — progress saves) ---------- */
   function moonClicker() {
+    const SAVE_KEY = 'lunaClickerSave';
     let dust = 0;          // spendable currency
-    let earned = 0;        // total ever earned = the score
+    let earned = 0;        // total ever collected (lifetime)
     let powerLevel = 0;    // click power = 1 + powerLevel
-    let clickPower = 1;
     let autoRate = 0;      // dust per second from auto collectors
-    let timeLeft = 30;     // seconds
-    let running = true, raf, lastTime = null;
+    // load saved progress so it picks up where you left off
+    try {
+      const s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+      dust = Number(s.dust) || 0;
+      earned = Number(s.earned) || 0;
+      powerLevel = Number(s.powerLevel) || 0;
+      autoRate = Number(s.autoRate) || 0;
+    } catch (e) {}
+    let clickPower = 1 + powerLevel;
+    let running = true, raf, lastTime = null, saveTimer = 0;
     let cheat = false, codeBuf = '';       // secret "luna" cheat
     let floats = [];       // floating "+N" texts
     let pop = 0;           // moon click bounce (0..1)
@@ -1214,15 +1222,24 @@
     const moon = { x: 232, y: 210, r: 96 };
     const powerCost = () => Math.round(10 + powerLevel * 12);
     const autoCost  = () => Math.round(15 + autoRate * 18);
+
+    // save progress (and keep the card's total up to date)
+    function save() {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        dust: Math.floor(dust), earned: Math.floor(earned), powerLevel, autoRate
+      }));
+      if (Math.floor(earned) > getBest('moon-clicker')) setBest('moon-clicker', Math.floor(earned));
+    }
+
     const buttons = [
       { x: 428, y: 116, w: 262, h: 98, title: '🖱️ Click Power',
         sub: () => '+1 dust per click  (now ' + clickPower + ')',
         cost: powerCost,
-        buy() { const c = powerCost(); if (dust >= c) { dust -= c; powerLevel++; clickPower = 1 + powerLevel; } } },
+        buy() { const c = powerCost(); if (dust >= c) { dust -= c; powerLevel++; clickPower = 1 + powerLevel; save(); } } },
       { x: 428, y: 226, w: 262, h: 98, title: '🌟 Auto Collector',
         sub: () => '+1 dust / sec  (now ' + autoRate + '/s)',
         cost: autoCost,
-        buy() { const c = autoCost(); if (dust >= c) { dust -= c; autoRate++; } } }
+        buy() { const c = autoCost(); if (dust >= c) { dust -= c; autoRate++; save(); } } }
     ];
 
     function onDown(e) {
@@ -1248,7 +1265,7 @@
     const kd = e => {
       if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
         codeBuf = (codeBuf + e.key.toLowerCase()).slice(-4);
-        if (!cheat && codeBuf === 'luna') { cheat = true; dust += 1000; earned += 1000; }
+        if (!cheat && codeBuf === 'luna') { cheat = true; dust += 1000; earned += 1000; save(); }
       }
     };
     canvas.addEventListener('mousedown', onDown);
@@ -1261,10 +1278,11 @@
       const dt = Math.min(0.05, (ts - lastTime) / 1000);
       lastTime = ts;
 
-      timeLeft -= dt;
-      if (timeLeft <= 0) { timeLeft = 0; running = false; }
       if (autoRate > 0) { const g = autoRate * dt; dust += g; earned += g; }
       if (pop > 0) pop = Math.max(0, pop - dt * 4);
+      // auto-save about twice a second
+      saveTimer += dt;
+      if (saveTimer >= 0.5) { saveTimer = 0; save(); }
 
       // background
       const grd = ctx.createLinearGradient(0, 0, 0, H);
@@ -1323,22 +1341,17 @@
         ctx.fillText('Cost: ' + b.cost() + ' 🌙', b.x + 16, b.y + 78);
       }
 
-      hudLeft.textContent = (cheat ? '😏 ' : '⏱️ ') + Math.ceil(timeLeft) + 's';
-      hudRight.textContent = '🌙 ' + Math.floor(dust) + ' dust';
+      hudLeft.textContent = (cheat ? '😏 ' : '🌙 ') + Math.floor(dust) + ' dust';
+      hudRight.textContent = '🏆 ' + Math.floor(earned) + ' total';
 
-      if (!running) {
-        let final = Math.floor(earned);
-        if (final === 666) final = 667;   // skip the devil's number 😈
-        endGame('You collected ' + final + ' moon dust! 🌙', final);
-        return;
-      }
-      raf = requestAnimationFrame(loop);
+      raf = requestAnimationFrame(loop);   // endless — never ends on its own
     }
     raf = requestAnimationFrame(loop);
 
     return function stop() {
       running = false;
       cancelAnimationFrame(raf);
+      save();   // save whenever you leave the game
       canvas.removeEventListener('mousedown', onDown);
       canvas.removeEventListener('touchstart', onDown);
       window.removeEventListener('keydown', kd);

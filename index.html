@@ -389,6 +389,12 @@
       title: 'Geometry Dash 2',
       desc: 'Dodge spikes, jump on blocks — have fun!',
       img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='260'%3E%3Crect width='347' height='260' fill='%23120c33'/%3E%3Crect x='55' y='140' width='52' height='52' rx='8' fill='%23fbbf24'/%3E%3Crect x='70' y='155' width='10' height='10' fill='%23120c33'/%3E%3Cpolygon points='165,196 187,140 209,196' fill='%23ef4444'/%3E%3Cpolygon points='214,196 236,140 258,196' fill='%23ef4444'/%3E%3Crect x='0' y='196' width='347' height='7' fill='%23fbbf24'/%3E%3C/svg%3E"
+    },
+    {
+      id: 'moon-clicker',
+      title: 'Moon Clicker',
+      desc: 'Click the moon for 30s! Buy upgrades and collect the most moon dust.',
+      img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='260'%3E%3Crect width='347' height='260' fill='%23140f38'/%3E%3Ccircle cx='150' cy='128' r='72' fill='%23fbbf24'/%3E%3Ccircle cx='176' cy='112' r='60' fill='%23140f38'/%3E%3Ctext x='214' y='120' font-size='58'%3E%E2%9C%A8%3C/text%3E%3Ctext x='58' y='226' font-size='52'%3E%F0%9F%96%B1%EF%B8%8F%3C/text%3E%3C/svg%3E"
     }
   ];
 
@@ -531,7 +537,8 @@
       'star-catcher': 'Move with your mouse or ← → arrow keys. Catch stars, don\'t let them fall!',
       'fox-parkour': 'Press Space / ↑ / tap to jump. Dodge the wolves!',
       'moon-miner': 'Move with your mouse or ← → arrow keys. Grab 💎 gems, dodge 🔥 lava and 🪨 rocks!',
-      'geometry-dash-2': 'Press Space / ↑ / tap to jump. Dodge the spikes and land on the blocks!'
+      'geometry-dash-2': 'Press Space / ↑ / tap to jump. Dodge the spikes and land on the blocks!',
+      'moon-clicker': 'Click the 🌙 moon fast! Spend dust on upgrades. Most dust in 30 seconds wins!'
     };
     document.getElementById('playHint').textContent = hints[id] || '';
     document.getElementById('bestLabel').textContent =
@@ -547,7 +554,8 @@
     'star-catcher': ' ⭐',
     'fox-parkour': 'm 🏃',
     'moon-miner': ' 💎',
-    'geometry-dash-2': ' ▲'
+    'geometry-dash-2': ' ▲',
+    'moon-clicker': ' 🌙'
   })[id] || '';
 
   /* ---------- leaderboard (top 5 per game, saved in the browser) ---------- */
@@ -742,6 +750,7 @@
     if (id === 'star-catcher') activeStop = starCatcher();
     else if (id === 'fox-parkour') activeStop = foxParkour();
     else if (id === 'moon-miner') activeStop = moonMiner();
+    else if (id === 'moon-clicker') activeStop = moonClicker();
     else activeStop = geometryDash();
   }
 
@@ -1186,6 +1195,153 @@
       window.removeEventListener('keydown', kd);
       canvas.removeEventListener('mousedown', tap);
       canvas.removeEventListener('touchstart', tap);
+    };
+  }
+
+  /* ---------- Game 5: Moon Clicker ---------- */
+  function moonClicker() {
+    let dust = 0;          // spendable currency
+    let earned = 0;        // total ever earned = the score
+    let powerLevel = 0;    // click power = 1 + powerLevel
+    let clickPower = 1;
+    let autoRate = 0;      // dust per second from auto collectors
+    let timeLeft = 30;     // seconds
+    let running = true, raf, lastTime = null;
+    let cheat = false, codeBuf = '';       // secret "luna" cheat
+    let floats = [];       // floating "+N" texts
+    let pop = 0;           // moon click bounce (0..1)
+
+    const moon = { x: 232, y: 210, r: 96 };
+    const powerCost = () => Math.round(10 + powerLevel * 12);
+    const autoCost  = () => Math.round(15 + autoRate * 18);
+    const buttons = [
+      { x: 428, y: 116, w: 262, h: 98, title: '🖱️ Click Power',
+        sub: () => '+1 dust per click  (now ' + clickPower + ')',
+        cost: powerCost,
+        buy() { const c = powerCost(); if (dust >= c) { dust -= c; powerLevel++; clickPower = 1 + powerLevel; } } },
+      { x: 428, y: 226, w: 262, h: 98, title: '🌟 Auto Collector',
+        sub: () => '+1 dust / sec  (now ' + autoRate + '/s)',
+        cost: autoCost,
+        buy() { const c = autoCost(); if (dust >= c) { dust -= c; autoRate++; } } }
+    ];
+
+    function onDown(e) {
+      e.preventDefault();
+      if (!running) return;
+      const rect = canvas.getBoundingClientRect();
+      const sx = W / rect.width, sy = H / rect.height;
+      const px = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) * sx;
+      const py = ((e.touches ? e.touches[0].clientY : e.clientY) - rect.top) * sy;
+      // moon click?
+      const dx = px - moon.x, dy = py - moon.y;
+      if (dx * dx + dy * dy <= moon.r * moon.r) {
+        dust += clickPower; earned += clickPower;
+        pop = 1;
+        floats.push({ x: px, y: py, life: 1, val: clickPower });
+        return;
+      }
+      // upgrade buttons
+      for (const b of buttons) {
+        if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) { b.buy(); return; }
+      }
+    }
+    const kd = e => {
+      if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+        codeBuf = (codeBuf + e.key.toLowerCase()).slice(-4);
+        if (!cheat && codeBuf === 'luna') { cheat = true; dust += 1000; earned += 1000; }
+      }
+    };
+    canvas.addEventListener('mousedown', onDown);
+    canvas.addEventListener('touchstart', onDown, { passive: false });
+    window.addEventListener('keydown', kd);
+
+    function loop(ts) {
+      if (!running) return;
+      if (lastTime == null) lastTime = ts;
+      const dt = Math.min(0.05, (ts - lastTime) / 1000);
+      lastTime = ts;
+
+      timeLeft -= dt;
+      if (timeLeft <= 0) { timeLeft = 0; running = false; }
+      if (autoRate > 0) { const g = autoRate * dt; dust += g; earned += g; }
+      if (pop > 0) pop = Math.max(0, pop - dt * 4);
+
+      // background
+      const grd = ctx.createLinearGradient(0, 0, 0, H);
+      grd.addColorStop(0, '#1a1440'); grd.addColorStop(1, '#0c0722');
+      ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+
+      // the moon (with a soft glow + click bounce)
+      const r = moon.r * (1 + 0.08 * pop);
+      const glow = ctx.createRadialGradient(moon.x, moon.y, r * 0.6, moon.x, moon.y, r * 1.5);
+      glow.addColorStop(0, 'rgba(251,191,36,0.35)'); glow.addColorStop(1, 'rgba(251,191,36,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(moon.x, moon.y, r * 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath(); ctx.arc(moon.x, moon.y, r, 0, Math.PI * 2); ctx.fill();
+      // craters
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      ctx.beginPath(); ctx.arc(moon.x - 26, moon.y - 22, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(moon.x + 30, moon.y + 18, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(moon.x + 8, moon.y + 40, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a1440';
+      ctx.font = 'bold 18px Trebuchet MS, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('CLICK ME!', moon.x, moon.y + r + 22);
+
+      // stats line
+      ctx.fillStyle = '#cbc6e8';
+      ctx.font = '15px Trebuchet MS, sans-serif';
+      ctx.fillText('⚡ Power ' + clickPower + '   🌟 Auto ' + autoRate + '/s', moon.x, 44);
+
+      // floating "+N" texts
+      ctx.font = 'bold 20px Trebuchet MS, sans-serif';
+      for (let i = floats.length - 1; i >= 0; i--) {
+        const f = floats[i];
+        f.life -= dt * 1.4; f.y -= dt * 60;
+        if (f.life <= 0) { floats.splice(i, 1); continue; }
+        ctx.fillStyle = 'rgba(254,243,199,' + f.life + ')';
+        ctx.fillText('+' + f.val, f.x, f.y);
+      }
+
+      // upgrade buttons
+      ctx.textAlign = 'left';
+      for (const b of buttons) {
+        const afford = dust >= b.cost();
+        ctx.fillStyle = afford ? 'rgba(251,191,36,0.16)' : 'rgba(255,255,255,0.05)';
+        ctx.strokeStyle = afford ? '#fbbf24' : 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 12); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px Trebuchet MS, sans-serif';
+        ctx.fillText(b.title, b.x + 16, b.y + 28);
+        ctx.fillStyle = '#cbc6e8';
+        ctx.font = '13px Trebuchet MS, sans-serif';
+        ctx.fillText(b.sub(), b.x + 16, b.y + 52);
+        ctx.fillStyle = afford ? '#fbbf24' : '#ef8a8a';
+        ctx.font = 'bold 15px Trebuchet MS, sans-serif';
+        ctx.fillText('Cost: ' + b.cost() + ' 🌙', b.x + 16, b.y + 78);
+      }
+
+      hudLeft.textContent = (cheat ? '😏 ' : '⏱️ ') + Math.ceil(timeLeft) + 's';
+      hudRight.textContent = '🌙 ' + Math.floor(dust) + ' dust';
+
+      if (!running) {
+        let final = Math.floor(earned);
+        if (final === 666) final = 667;   // skip the devil's number 😈
+        endGame('You collected ' + final + ' moon dust! 🌙', final);
+        return;
+      }
+      raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+
+    return function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      canvas.removeEventListener('mousedown', onDown);
+      canvas.removeEventListener('touchstart', onDown);
+      window.removeEventListener('keydown', kd);
     };
   }
 

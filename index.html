@@ -872,6 +872,7 @@
     const gravity = 0.7, jumpV = -13.5;
     let wolves = [];
     let asteroids = [];   // fall from the sky — dodge by NOT being underneath
+    let particles = [];   // explosion debris when an asteroid hits the ground
     let score = 0, frame = 0, speed = 6, running = true, raf;
     let cheat = false, codeBuf = '', bonus = 0;   // secret "luna" cheat
 
@@ -944,6 +945,7 @@
 
       // asteroids (fall straight down)
       ctx.font = '38px serif';
+      const impactY = groundY + 22;           // the ground line
       for (let i = asteroids.length - 1; i >= 0; i--) {
         const a = asteroids[i];
         a.y += a.vy;
@@ -952,7 +954,34 @@
         if (!cheat && Math.abs(a.x - fox.x) < 30 && Math.abs(a.y - (fox.y - 8)) < 30) {
           running = false;                    // cheat = asteroids can't hurt you
         }
-        if (a.y > H + 40) asteroids.splice(i, 1);
+        // hit the ground → explode into debris
+        if (a.y >= impactY) {
+          for (let p = 0; p < 12; p++) {
+            const ang = -Math.PI * Math.random();          // upward-ish spray
+            const spd = 2 + Math.random() * 4;
+            particles.push({
+              x: a.x, y: impactY,
+              vx: Math.cos(ang) * spd * (Math.random() < 0.5 ? -1 : 1),
+              vy: Math.sin(ang) * spd,
+              life: 1
+            });
+          }
+          asteroids.splice(i, 1);
+        }
+      }
+
+      // explosion particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.3;                          // gravity on the debris
+        p.life -= 0.03;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.fillStyle = 'rgba(251,146,60,' + p.life + ')';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3 * p.life + 1, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       // fox

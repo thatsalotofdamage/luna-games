@@ -871,6 +871,7 @@
     const fox = { x: 110, y: groundY, vy: 0, size: 42, onGround: true };
     const gravity = 0.7, jumpV = -13.5;
     let wolves = [];
+    let asteroids = [];   // fall from the sky — dodge by NOT being underneath
     let score = 0, frame = 0, speed = 6, running = true, raf;
     let cheat = false, codeBuf = '', bonus = 0;   // secret "luna" cheat
 
@@ -908,6 +909,12 @@
         wolves.push({ x: W + 30, y: groundY, size: 40 });
       }
 
+      // spawn falling asteroids (start after a short warm-up, more frequent as you go)
+      const astGap = Math.max(45, 130 - score * 0.35);
+      if (score > 30 && frame % Math.round(astGap) === 0 && Math.random() < 0.6) {
+        asteroids.push({ x: 60 + Math.random() * (W - 120), y: -30, vy: 3 + Math.random() * 2 + score * 0.01 });
+      }
+
       // draw background
       ctx.fillStyle = '#100b2e';
       ctx.fillRect(0, 0, W, H);
@@ -933,6 +940,19 @@
           running = false;                    // cheat = wolves can't hurt you
         }
         if (wv.x < -40) wolves.splice(i, 1);
+      }
+
+      // asteroids (fall straight down)
+      ctx.font = '38px serif';
+      for (let i = asteroids.length - 1; i >= 0; i--) {
+        const a = asteroids[i];
+        a.y += a.vy;
+        ctx.fillText('☄️', a.x, a.y);
+        // collision: fox is hit if the asteroid overlaps its body
+        if (!cheat && Math.abs(a.x - fox.x) < 30 && Math.abs(a.y - (fox.y - 8)) < 30) {
+          running = false;                    // cheat = asteroids can't hurt you
+        }
+        if (a.y > H + 40) asteroids.splice(i, 1);
       }
 
       // fox

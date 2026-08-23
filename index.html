@@ -956,14 +956,14 @@
         }
         // hit the ground → explode into debris
         if (a.y >= impactY) {
-          for (let p = 0; p < 32; p++) {
+          for (let p = 0; p < 70; p++) {
             const ang = -Math.PI * Math.random();          // upward-ish spray
-            const spd = 3 + Math.random() * 8;
+            const spd = 4 + Math.random() * 14;
             particles.push({
               x: a.x, y: impactY,
               vx: Math.cos(ang) * spd * (Math.random() < 0.5 ? -1 : 1),
               vy: Math.sin(ang) * spd,
-              size: 4 + Math.random() * 5,
+              size: 7 + Math.random() * 10,
               life: 1
             });
           }
@@ -977,7 +977,7 @@
         p.x += p.vx;
         p.y += p.vy;
         p.vy += 0.3;                          // gravity on the debris
-        p.life -= 0.025;
+        p.life -= 0.02;
         if (p.life <= 0) { particles.splice(i, 1); continue; }
         ctx.fillStyle = 'rgba(251,146,60,' + p.life + ')';
         ctx.beginPath();
